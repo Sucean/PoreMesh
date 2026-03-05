@@ -1,7 +1,7 @@
 import gradio as gr
 from .base_component import create_base_component
 
-def create_control_dict_component():
+def create_control_dict_component(working_dir, current_dir):
     component_definitions = {
     "application": {
         'component_type': 'Dropdown',
@@ -37,4 +37,4 @@ def create_control_dict_component():
     }
     }
     
-    return create_base_component("controlDict", component_definitions)
+    return create_base_component("controlDict", component_definitions, working_dir, current_dir)

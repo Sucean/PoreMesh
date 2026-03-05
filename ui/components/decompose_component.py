@@ -1,7 +1,7 @@
 import gradio as gr
 from .base_component import create_base_component
 
-def create_decompose_component():
+def create_decompose_component(working_dir, current_dir):
     component_definitions = {
         "method": {
             'component_type': 'Dropdown',
@@ -15,4 +15,4 @@ def create_decompose_component():
             'label': "Number of Domains"
         }
     }
-    return create_base_component("decomposeParDict", component_definitions)
+    return create_base_component("decomposeParDict", component_definitions, working_dir, current_dir)
