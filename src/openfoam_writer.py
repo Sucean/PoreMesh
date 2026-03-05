@@ -332,6 +332,16 @@ class OpenFOAMCaseBuilder:
             "front": [(0, 3, 2, 1)],     # z-min face
             "back": [(4, 5, 6, 7)]      # z-max face
         }
+
+        # boundary_faces = {
+        #     "inlet":  [(0, 3, 7, 4)],   # x = min
+        #     "outlet": [(1, 2, 6, 5)],   # x = max
+        
+        #     "minY":   [(0, 1, 5, 4)],
+        #     "maxY":   [(3, 2, 6, 7)],
+        #     "minZ":   [(0, 4, 7, 3)],
+        #     "maxZ":   [(1, 5, 6, 2)],
+        # }
         
         for name, faces in boundary_faces.items():
             mesh_dict.start_dict(name)
@@ -480,7 +490,7 @@ def analyze_stl_and_generate_blockmesh(stl_file, flow_direction, background_scal
         
         # Analyze STL file - stl_file is already a string path from Gradio
         analyzer = STLAnalyzer()
-        geometry = analyzer.analyze_stl(Path(stl_file))  # Remove .name
+        geometry = analyzer.analyze_stl(stl_file) # Remove .name
         
         # Calculate bounds with background scaling
         bounds = geometry.bounds
@@ -537,39 +547,41 @@ def analyze_stl_and_generate_blockmesh(stl_file, flow_direction, background_scal
         
         # Flow direction face lookup
         flow_faces = {
-            'x': {  # Flow along X-axis
-                'inlet': [(0, 4, 7, 3)],
-                'outlet': [(1, 5, 6, 2)],
-                'front': [(0, 1, 5, 4)],
-                'back': [(2, 3, 7, 6)],
-                'bottom': [(0, 1, 2, 3)],
-                'top': [(4, 5, 6, 7)]
+            'x': {  # Flow along X-axis (inlet at x-min, outlet at x-max)
+                'inlet':  [(0, 3, 7, 4)],   # x
+                'outlet': [(1, 5, 6, 2)],   # x
+                'front':  [(0, 1, 5, 4)],   # y
+                'back':   [(2, 6, 7, 3)],   # y
+                'bottom': [(0, 1, 2, 3)],   # z
+                'top':    [(4, 7, 6, 5)]    # z
             },
+        
             'y': {  # Flow along Y-axis
-                'inlet': [(0, 1, 5, 4)],
-                'outlet': [(2, 3, 7, 6)],
-                'front': [(0, 4, 7, 3)],
-                'back': [(1, 5, 6, 2)],
-                'bottom': [(0, 1, 2, 3)],
-                'top': [(4, 5, 6, 7)]
+                'inlet':  [(0, 1, 5, 4)],   # y
+                'outlet': [(2, 3, 7, 6)],   # y
+                'front':  [(0, 4, 7, 3)],   # x
+                'back':   [(1, 2, 6, 5)],   # x
+                'bottom': [(0, 1, 2, 3)],   # z
+                'top':    [(4, 5, 6, 7)]    # z
             },
-            'z': {  # Flow along Z-axis
-                'inlet': [(0, 1, 2, 3)],
-                'outlet': [(4, 5, 6, 7)],
-                'front': [(0, 1, 5, 4)],
-                'back': [(2, 3, 7, 6)],
-                'bottom': [(0, 4, 7, 3)],
-                'top': [(1, 5, 6, 2)]
+        
+            'z': {  # Flow along Z-axis ← most common
+                'inlet':  [(0, 3, 2, 1)],   # z
+                'outlet': [(4, 5, 6, 7)],   # z
+                'front':  [(0, 1, 5, 4)],   # x
+                'back':   [(1, 2, 6, 5)],   # x
+                'bottom': [(0, 4, 7, 3)],   # y
+                'top':    [(3, 7, 6, 2)]    # y
             }
         }
         
         boundary_types = {
             'inlet': 'patch',
             'outlet': 'patch',
-            'front': 'symmetry', 
-            'back': 'symmetry',
-            'bottom': 'symmetry',
-            'top': 'symmetry'
+            'front': 'wall', 
+            'back': 'wall',
+            'bottom': 'wall',
+            'top': 'wall'
         }
         
         # Generate blockMeshDict

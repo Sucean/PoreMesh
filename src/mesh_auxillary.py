@@ -3,7 +3,7 @@ from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
 import numpy as np
 
-def show_mesh(data, autoscale = True, cl = 'blue', dpi=100):
+def show_mesh(data, autoscale = True, cl = 'blue', dpi=100, alpha=0.25, show_normals=False, normal_scale=0.2):
 
     if isinstance(data, mesh.Mesh):
         the_mesh = data
@@ -14,7 +14,19 @@ def show_mesh(data, autoscale = True, cl = 'blue', dpi=100):
     axes = mplot3d.Axes3D(figure, auto_add_to_figure=False)
     figure.add_axes(axes)
 
-    axes.add_collection3d(mplot3d.art3d.Poly3DCollection(the_mesh.vectors, alpha=0.25, facecolor=cl, edgecolor='black'))
+    axes.add_collection3d(mplot3d.art3d.Poly3DCollection(the_mesh.vectors, alpha=alpha, facecolor=cl, edgecolor='black'))
+
+    if show_normals:
+        centers = the_mesh.vectors.mean(axis=1)      # (N,3)
+        normals = the_mesh.normals                   # (N,3)
+
+        axes.quiver(
+            centers[:,0], centers[:,1], centers[:,2],
+            normals[:,0], normals[:,1], normals[:,2],
+            length=normal_scale,
+            normalize=True,
+            color='red'
+        )
 
     if autoscale:
         scale = the_mesh.points.flatten()
@@ -34,18 +46,27 @@ def create_proto_voxel():
     
     proto_voxel = np.zeros(12, dtype=mesh.Mesh.dtype)
 
+    # protoface['vectors'][0] = np.array([[0., 0., 0.], [1., 0., 0.], [0., 0., 1.]])
+    # protoface['vectors'][1] = np.array([[1., 0., 0.], [1., 0., 1.], [0., 0., 1.]])
+
     proto_voxel['vectors'][0] = [[0,0,0],[1,0,0],[0,0,1]]
-    proto_voxel['vectors'][1] = [[1,0,0],[0,0,1],[1,0,1]]
-    proto_voxel['vectors'][2] = [[1,1,0],[1,1,1],[1,0,1]]
-    proto_voxel['vectors'][3] = [[1,0,0],[1,1,0],[1,0,1]]
-    proto_voxel['vectors'][4] = [[0,0,1],[0,1,1],[0,1,0]]
-    proto_voxel['vectors'][5] = [[0,0,1],[0,0,0],[0,1,0]]
-    proto_voxel['vectors'][6] = [[0,1,0],[1,1,0],[0,1,1]]
+    proto_voxel['vectors'][1] = [[1,0,0],[1,0,1],[0,0,1]]
+    
+    proto_voxel['vectors'][2] = [[1,0,0],[1,1,0],[1,0,1]]
+    proto_voxel['vectors'][3] = [[1,1,0],[1,1,1],[1,0,1]]
+    
+    proto_voxel['vectors'][4] = [[0,0,0],[0,0,1],[0,1,0]]
+    proto_voxel['vectors'][5] = [[0,1,0],[0,0,1],[0,1,1]]
+    
+    proto_voxel['vectors'][6] = [[0,1,0],[0,1,1],[1,1,0]]
     proto_voxel['vectors'][7] = [[1,1,0],[0,1,1],[1,1,1]]
+    
     proto_voxel['vectors'][8] = [[0,1,0],[1,0,0],[0,0,0]]
-    proto_voxel['vectors'][9] = [[0,1,0],[1,1,0],[1,0,0]]
-    proto_voxel['vectors'][10] = [[0,1,1],[1,0,1],[0,0,1]]
-    proto_voxel['vectors'][11] = [[0,1,1],[1,1,1],[1,0,1]]
+    proto_voxel['vectors'][9] = [[1,0,0],[0,1,0],[1,1,0]]
+    
+    proto_voxel['vectors'][10] = [[0,0,1],[1,0,1],[0,1,1]]
+    proto_voxel['vectors'][11] = [[1,0,1],[1,1,1],[0,1,1]]
+
 
     return proto_voxel
 
@@ -56,9 +77,13 @@ def create_proto_face():
     proto_voxel['vectors'][0] = [[0,0,0],[1,0,0],[0,0,1]]
     proto_voxel['vectors'][1] = [[1,0,0],[0,0,1],[1,0,1]]
 
+    # Add the normal (facing positive X)
+    proto_voxel['normals'][0] = [0, -1, 0]
+    proto_voxel['normals'][1] = [0, -1, 0]
+
     return proto_voxel
 
-def rotate_face(proto_face = create_proto_face(), axis = 'x', angle = 90):
+def rotate_face(proto_face = create_proto_face(), axis = 'x', angle = 90, P = [0.5, 0.5, 0.5]):
 
     angle = np.radians(angle)
     
@@ -70,11 +95,25 @@ def rotate_face(proto_face = create_proto_face(), axis = 'x', angle = 90):
     }
 
     # Apply Rotation matrices on all vectors in all faces given into the function
-    for i in range(len(proto_face)):
-        for j in range(3):
+    for i in range(len(proto_face)): 
+        for j in range(3): 
             proto_face['vectors'][i][j] = np.dot(rotation_matrices[axis], proto_face['vectors'][i][j])
+        #proto_face['normals'][i] = np.dot(rotation_matrices[axis], proto_face['normals'][i])
+
+    
+    # R = rotation_matrices[axis]
+    # for i in range(len(proto_face['vectors'])):
+    #     v = proto_face['vectors'][i] - P
+    #     proto_face['vectors'][i] = R @ v + P
+    #     proto_face['normals'][i] = R @ proto_face['normals'][i]
     
     return proto_face
+
+def face_normal(tri):
+    e1 = tri[1] - tri[0]
+    e2 = tri[2] - tri[0]
+    n = np.cross(e1, e2)
+    return n / np.linalg.norm(n)
 
 def map_to_3d(binary_array):
     # Define mapping between bit positions and voxel positions

@@ -5,8 +5,10 @@ from pathlib import Path
 from typing import Optional
 
 class MeshGenerator:
-    def __init__(self, threshold: int = 127):
+    def __init__(self, threshold: int = 127, tolerance: float = 0.001):
         self.threshold = threshold
+        self.tolerance = tolerance
+        self.use_contourfilter = True
     
     def numpy_to_vtk(self, data: np.ndarray) -> vtk.vtkImageData:
         """Convert numpy array to VTK image data with proper dimension handling"""
@@ -32,14 +34,20 @@ class MeshGenerator:
     
     def extract_mesh(self, vtk_data: vtk.vtkImageData) -> vtk.vtkPolyData:
         """Extract mesh using marching cubes"""
-        try:
+
+        if not self.use_contourfilter:
+            try:
+                extractor = vtk.vtkMarchingCubes()
+            except AttributeError:
+                extractor = vtk.vtkFlyingEdges3D()
+        else:
+            # extractor = vtk.vtkContourFilter()
             extractor = vtk.vtkMarchingCubes()
-        except AttributeError:
-            extractor = vtk.vtkFlyingEdges3D()
         
         extractor.SetInputData(vtk_data)
         extractor.SetValue(0, self.threshold)
         extractor.ComputeNormalsOn()
+        extractor.ComputeGradientsOn()
         extractor.Update()
         
         polydata = extractor.GetOutput()
@@ -47,31 +55,54 @@ class MeshGenerator:
         # Clean the mesh
         cleaner = vtk.vtkCleanPolyData()
         cleaner.SetInputData(polydata)
+        cleaner.SetTolerance(self.tolerance)
         cleaner.Update()
+
+        # Triangle Filter
+        triangle_filter = vtk.vtkTriangleFilter()
+        triangle_filter.SetInputConnection(cleaner.GetOutputPort())
+
+            # Fill holes
+        fill_holes = vtk.vtkFillHolesFilter()
+        fill_holes.SetInputConnection(triangle_filter.GetOutputPort())
+        fill_holes.SetHoleSize(1000.0)  # Adjust based on your scale
         
-        return cleaner.GetOutput()
+        # Final cleanup
+        final_cleaner = vtk.vtkCleanPolyData()
+        final_cleaner.SetInputConnection(fill_holes.GetOutputPort())
+        final_cleaner.Update()
     
-    def test_watertightness(self, polydata: vtk.vtkPolyData) -> int:
+        return final_cleaner.GetOutput()
+    
+    def test_watertightness(self, polydata) -> int:
         """Test if mesh is watertight"""
-        feature_edges = vtk.vtkFeatureEdges()
-        feature_edges.SetInputData(polydata)
-        feature_edges.BoundaryEdgesOn()
-        feature_edges.FeatureEdgesOff()
-        feature_edges.NonManifoldEdgesOn()
-        feature_edges.ManifoldEdgesOff()
-        feature_edges.Update()
-        return feature_edges.GetOutput().GetNumberOfCells()
+        if isinstance(polydata, vtk.vtkPolyData):
+            feature_edges = vtk.vtkFeatureEdges()
+            feature_edges.SetInputData(polydata)
+            feature_edges.BoundaryEdgesOn()
+            feature_edges.FeatureEdgesOff()
+            feature_edges.NonManifoldEdgesOn()
+            feature_edges.ManifoldEdgesOff()
+            feature_edges.Update()
+            return feature_edges.GetOutput().GetNumberOfCells()
+        else:
+            return 0
     
-    def write_mesh(self, polydata: vtk.vtkPolyData, output_path: Path, ascii: bool = True):
+    def write_mesh(self, polydata, output_path: Path, ascii: bool = True):
         """Write mesh to STL file"""
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        writer = vtk.vtkSTLWriter()
-        writer.SetFileName(str(output_path))
-        writer.SetInputData(polydata)
-        writer.SetFileTypeToASCII() if ascii else writer.SetFileTypeToBinary()
-        writer.Write()
+        if isinstance(polydata, vtk.vtkPolyData):
+            writer = vtk.vtkSTLWriter()
+            writer.SetFileName(str(output_path))
+            writer.SetInputData(polydata)
+            writer.SetFileTypeToASCII() if ascii else writer.SetFileTypeToBinary()
+            writer.Write()
+        elif hasattr(polydata, 'save'):  # numpy-stl mesh
+            polydata.save(str(output_path))
+        else:
+            raise TypeError(f"Unsupported mesh type: {type(mesh_obj)}")
     
     def generate_mesh_from_array(self, data: np.ndarray) -> vtk.vtkPolyData:
         """Complete pipeline from numpy array to mesh"""

@@ -2,8 +2,8 @@
 FIB-SEM to Mesh Processing Pipeline
 """
 
-__version__ = "1.0.0"
-__author__ = "Your Name"
+__version__ = "0.01"
+__author__ = "SKD3"
 
 # Core pipeline
 from .data_loader import DataLoader
@@ -19,6 +19,10 @@ from .template_manager import TemplateManager
 
 # Geometry analysis
 from .stl_analyzer import STLAnalyzer, STLGeometry
+
+# Custom Geometry Code:
+from .walking_cubes import WalkingCubes
+from .mesh_auxillary import show_mesh, create_proto_voxel, create_proto_face, rotate_face, map_to_3d, map_to_binary, vert
 
 # Optional: OpenFOAM builders (if you have these modules)
 try:
