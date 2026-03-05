@@ -29,7 +29,7 @@ FILE_BODY = {
         "runTimeModifiable": True,
         "adjustTimeStep": "no",
         "maxCo": 0.5,
-        "functions": {"#include": "FOs"},
+        "functions": {},
         "libs": []
     },
     
@@ -67,6 +67,11 @@ FILE_BODY = {
                 "relTol": 0.1,
                 "maxIter": 100
             },
+            "UFinal": {
+                "$U": "",
+                "tolerance": 1e-10,
+                "relTol": 0
+            },
             "p": {
                 "solver": "GAMG", 
                 "smoother": "GaussSeidel",
@@ -77,6 +82,11 @@ FILE_BODY = {
                 "tolerance": 1e-07,
                 "relTol": 0.01,
                 "maxIter": 100
+            },
+            "pFinal": {
+                "$p": "",
+                "tolerance": 9.99e-10,
+                "relTol": 0
             }
         },
         "PIMPLE": {
@@ -138,6 +148,18 @@ FILE_BODY = {
             }
         }       
     },
+    # surfaceFeatureExtract template
+    "surfaceFeatureExtractDict": {
+        "proto.stl": {
+            "extractionMethod": "extractFromSurface",
+            "includeAngle": 170,
+            "subsetFeatures": {
+                "nonManifoldEdges": "no",
+                "openEdges": "no",
+            },
+            "writeObj": "yes"
+        }
+    },
     
     # snappyHexMesh template
     "snappyHexMeshDict": {
@@ -148,17 +170,20 @@ FILE_BODY = {
         "PUT YOUR": "TODO GET GEOMETRY BASED ON STL"
     },
     "castellatedMeshControls": {
-        "maxLocalCells": 10000000,
-        "maxGlobalCells": 50000000,
+        "maxLocalCells": 1000000,
+        "maxGlobalCells": 5000000,
         "minRefinementCells": 10,
         "maxLoadUnbalance": 0.1,
         "nCellsBetweenLevels": 5,
-        "features": [],
+        "features": {            
+            "file": "",
+            "level": 2
+                    },
         "refinementSurfaces": {},
-        "resolveFeatureAngle": 25,
+        "resolveFeatureAngle": 30,
         "refinementRegions": {},
         "locationInMesh": [0, 0, 0],  # Will be set from STL analysis
-        "allowFreeStandingZoneFaces": False
+        "allowFreeStandingZoneFaces": True
     },
     "snapControls": {
         "nSmoothPatch": 3,
@@ -169,24 +194,94 @@ FILE_BODY = {
         "implicitFeatureSnap": False,
         "explicitFeatureSnap": True,
         "multiRegionFeatureSnap": False
-    }
-},
+        },
+   "addLayersControls": {
+        "relativeSizes": True,
+        "expansionRatio": 1.0,
+        "finalLayerThickness": 0.3,
+        "minThickness": 0.1,
+        "nGrow": 0,
+        "featureAngle": 60,
+        "slipFeatureAngle": 30,
+        "nRelaxIter": 3,
+        "nSmoothSurfaceNormals": 1,
+        "nSmoothNormals": 3,
+        "nSmoothThickness": 10,
+        "maxFaceThicknessRatio": 0.5,
+        "maxThicknessToMedialRatio": 0.3,
+        "minMedialAxisAngle": 90,
+        "nBufferCellsNoExtrude": 0,
+        "nLayerIter": 50
+    },      
+    "meshQualityControls": {
+        "maxNonOrtho": 75,
+        "maxBoundarySkewness": 20,
+        "maxInternalSkewness": 8,
+        "maxConcave": 80,
+        "minVol": 1e-18,
+        "minTetQuality": 1e-15,
+        "minArea": -1,
+        "minTwist": 0.02,
+        "minDeterminant": 0.001,
+        "minFaceWeight": 0.02,
+        "minVolRatio": 0.01,
+        "minTriangleTwist": -1
+        },
+    "mergeTolerance": 1e-6
+    },
+    
     "U": {
+        "dimensions": "[0 2 -2 0 0 0 0]",
+        "internalField": "uniform (0 0 0)",
+        "boundaryField": {
+            "inlet": {
+                "type": "fixedValue",
+                "value": "uniform (0 0 1)"
+            },
+            "outlet": {
+                "type": "fixedValue",
+                "inletValue": "uniform (0 0 0)",
+                "value": "uniform (0 0 0)"
+            },
+            "walls": {
+                "type": "fixedValue",
+                "value": "uniform 0"
+            },
+            "front|back|bottom|top": {
+                "type": "fixedValue",
+                "value": "uniform (0 0 0)"
+            }
+        }
+    },
+    "p": {
         "dimensions": "[0 2 -2 0 0 0 0]",
         "internalField": "uniform 0",
         "boundaryField": {
             "inlet": {
                 "type": "fixedValue",
-                "value": "uniform 0"
+                "value": "uniform (0 0 1)"
             },
             "outlet": {
-                "type": "zeroGradient"
+                "type": "fixedValue",
+                "value": "uniform (0 0 0)"
             },
             "walls": {
-                "type": "zeroGradient"
+                "type": "zeroGradient",
+                "inletValue": "uniform (0 0 0)"
+            },
+            "front|back|bottoms|top": {
+                "type": "zeroGradient",
+                "inletValue": "uniform (0 0 0)"
             }
         }
-   } 
+   },
+    "transportProperties": {
+        "transportModel": "Newtonian",
+        "nu nu": "[0 2 -1 0 0 0 0] 1e-6"
+   },
+    "turbulenceProperties": {
+        "simulationType": "laminar",
+   }, 
 }
 # Headers for each file type
 FILE_HEADERS = {
@@ -214,6 +309,12 @@ FILE_HEADERS = {
         "class": "dictionary",
         "object": "decomposeParDict"
     },
+    "surfaceFeatureExtractDict": {
+        "version": 2.0,
+        "format": "ascii", 
+        "class": "dictionary",
+        "object": "surfaceFeatureExtractDict"
+    },
     "snappyHexMeshDict": {
         "version": 2.0,
         "format": "ascii", 
@@ -227,6 +328,18 @@ FILE_HEADERS = {
         "object": "U" 
     },
     "p": {
+        "version": 2.0,
+        "format": "ascii", 
+        "class": "volVectorField",
+        "object": "p" 
+    },
+    "transportProperties": {
+        "version": 2.0,
+        "format": "ascii", 
+        "class": "volVectorField",
+        "object": "U" 
+    },
+    "turbulenceProperties": {
         "version": 2.0,
         "format": "ascii", 
         "class": "volVectorField",
