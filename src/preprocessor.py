@@ -57,7 +57,7 @@ class Preprocessor:
         axis = axis or self.config.cap_axis
         
         ax = self.axes_map[axis]
-        z, x, y = data.shape
+        z, y, x = data.shape
         
         # Calculate number of blocks
         nz = z // block_size
